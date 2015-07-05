@@ -1,8 +1,10 @@
 #include <stdint.h>
 #include <msp430.h>
-#include "ledmatrix.h"
 #include "clocks.h"
 #include "macros.h"
+#include "ledmatrix.h"
+#include "rtc.h"
+#include "display.h"
 
 void init(void)
 {
@@ -10,6 +12,10 @@ void init(void)
 
 	// Initialise Power Management Module
 	PMMCTL0 = PMMPW | PMMCOREV_3;
+
+	// Initialise backup system
+	BAKCTL = BAKDIS;
+	BAKCHCTL = 0;
 
 	// Initialise clock sources
 	PXSEL(P7) |= BIT3 | BIT2;
@@ -27,16 +33,13 @@ void init(void)
 	UCSCTL6 = XT2DRIVE_1 /*| XT2BYPASS*/ /*| XT2OFF*/ | XT1DRIVE_0 /*| XTS*/ | XT1BYPASS | XT1OFF;
 	UCSCTL8 = MODOSCREQEN | SMCLKREQEN | MCLKREQEN | ACLKREQEN;
 	// UCSCTL9 is bypass settings, not available on MSP430F6659
-	// Stabilise XT2
-	__delay_cycles(MCLK / 1000000 * 500);
+
+	rtc::init();
+
+	// Stabilise crystals (500ms)
+	__delay_cycles(MCLK / 1000 * 500);
 	// [UCSCTL7] Clear fault flags
 	UCSCTL7 &= 0xFFF0;
-
-	// LED output port
-	P5SEL &= ~(1 << 7);
-	P5DIR |= 1 << 7;
-	P5DS |= 1 << 7;
-	P5OUT |= 1 << 7;
 
 	ledMatrix::init();
 	__enable_interrupt();
@@ -47,22 +50,13 @@ int main(void)
 	init();
 
 	using namespace ledMatrix;
-	fill(Red | Green);
-	setColour(((Red | Green) & Foreground) | (Blank & Background));
+	static uint16_t cnt = 0;
 
-	bool inv = false;
 loop:
-	if (!poolOneSecond())
-		goto loop;
-	testPattern(inv);
-	inv = !inv;
-	setXY(2, 4);
-	drawString("HelloWorld");
-	setXY(5, 12);
-	drawString("-> \200\201\202 <-");
-	setXY(2, 20);
-	drawString("??????????");
+	/*if (!pool1s())
+		goto loop;*/
+	display::timeFS();
+	(*buffer)[BufferRed][LEDMATRIX_H - 1][3] = cnt++;
 	swapBuffer();
-	P5OUT ^= 1 << 7;
 	goto loop;
 }

@@ -12,7 +12,12 @@
 
 #define LEDMATRIX_W	64
 #define LEDMATRIX_H	32
-#define LEDMATRIX_FPS	120
+#define LEDMATRIX_FPS	160
+
+#define LEDMATRIX_BUFFER8	((uint8_t (*)[2][LEDMATRIX_H][LEDMATRIX_W / 8])ledMatrix::buffer)
+#define LEDMATRIX_COLOUR(f, b)	(((f) & ledMatrix::Foreground) | ((b) & ledMatrix::Background))
+
+//#define LEDMATRIX_POOL1S
 
 namespace ledMatrix
 {
@@ -20,16 +25,26 @@ namespace ledMatrix
 		Foreground = 0xF0F0, Background = 0x0F0F,
 		BufferRed = 0, BufferGreen = 1};
 
+	extern struct data_t {
+		uint16_t x, y;
+		uint16_t clr;
+	} data;
+
 	void init();
-	bool poolOneSecond();
+#ifdef LEDMATRIX_POOL1S
+	bool pool1s();
+#endif
 	void clean();
 	void fill(uint16_t clr);
 	void testPattern(bool inv);
 
-	void setX(uint16_t x);
-	void setY(uint16_t y);
-	void setXY(uint16_t x, uint16_t y);
-	void setColour(uint16_t clr);
+	static inline uint16_t x() {return data.x;}
+	static inline uint16_t y() {return data.y;}
+	static inline void setX(uint16_t x) {data.x = x;}
+	static inline void setY(uint16_t y) {data.y = y;}
+	static inline void setXY(uint16_t x, uint16_t y) {setX(x); setY(y);}
+	static inline uint16_t colour() {return data.clr;}
+	static inline void setColour(uint16_t clr) {data.clr = clr;}
 
 	void drawChar(const char c);
 	void drawString(const char *str);

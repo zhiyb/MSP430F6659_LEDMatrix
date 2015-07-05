@@ -11,7 +11,7 @@
 #include "macros.h"
 
 #define LED_DATA_PORT	P1
-// Data lines (R1, R2, G1, G2) from
+// Data lines (R1, R2, G1, G2 (reversed?)) from
 #define LED_DATA_DATA	0
 #define LED_DATA_R1	BIT2
 #define LED_DATA_R2	BIT3

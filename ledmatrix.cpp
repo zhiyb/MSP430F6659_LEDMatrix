@@ -18,11 +18,10 @@ namespace ledMatrix
 {
 	uint16_t (*buffer)[2][LEDMATRIX_H][LEDMATRIX_W / 16];
 	uint16_t dispBuffer[2][2][LEDMATRIX_H][LEDMATRIX_W / 16];
+#ifdef LEDMATRIX_POOL1S
 	static volatile bool sec = false;
-	static struct data_t {
-		uint16_t x, y;
-		uint16_t clr;
-	} data;
+#endif
+	data_t data;
 }
 
 void ledMatrix::swapBuffer()
@@ -60,27 +59,6 @@ void ledMatrix::drawChar(const char c)
 		buf[BufferRed] += LEDMATRIX_W / 16;
 		buf[BufferGreen] += LEDMATRIX_W / 16;
 	}
-}
-
-void ledMatrix::setXY(uint16_t x, uint16_t y)
-{
-	data.x = x;
-	data.y = y;
-}
-
-void ledMatrix::setX(uint16_t x)
-{
-	data.x = x;
-}
-
-void ledMatrix::setY(uint16_t y)
-{
-	data.y = y;
-}
-
-void ledMatrix::setColour(uint16_t clr)
-{
-	data.clr = clr;
 }
 
 void ledMatrix::init()
@@ -145,13 +123,15 @@ void ledMatrix::testPattern(bool inv)
 	}
 }
 
-bool ledMatrix::poolOneSecond()
+#ifdef LEDMATRIX_POOL1S
+bool ledMatrix::pool1s()
 {
 	if (!sec)
 		return false;
 	sec = false;
 	return true;
 }
+#endif
 
 __attribute__((interrupt(TIMER0_A0_VECTOR)))
 void TIMER0_A0_ISR()
@@ -164,10 +144,12 @@ void TIMER0_A0_ISR()
 	uint8_t prevRow = row;
 	row = row == 0 ? (LEDMATRIX_H / 2 - 1) << LED_DATA_ROW : row - (1 << LED_DATA_ROW);
 
+#ifdef LEDMATRIX_POOL1S
 	static uint16_t counter = 0;
 	if (counter == 0)	// 1 second timer
 		sec = true;//P9OUT ^= 0xFF;
 	counter = counter == 0 ? LEDMATRIX_H / 2 * LEDMATRIX_FPS - 1 : counter - 1;
+#endif
 
 	uint16_t idx = (row >> LED_DATA_ROW) & 0x0F;
 	uint16_t *buf[4] = {

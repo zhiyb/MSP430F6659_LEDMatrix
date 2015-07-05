@@ -10,8 +10,7 @@ extern "C" {
 #endif
 
 #ifndef ASCII_STRIPPED
-#define ASCII_SIZE	99
-extern const unsigned char ascii_8x6[ASCII_SIZE][8];
+extern const unsigned char ascii_8x6[99][8];
 #else
 extern const unsigned char ascii_8x6[96][6];
 #endif

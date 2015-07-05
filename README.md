@@ -1,2 +1,19 @@
 # MSP430F6659_LEDMatrix
-Driving 2 colours 64x32 LED Matrix board with MSP430F6659
+Driving double-colour 64x32 LED matrix board with MSP430F6659
+
+Crystals: 32.768kHz XTAL1 and 12MHz XTAL2.
+LED matrix board Connections:
+	LED_DATA_PORT	P1
+	// Data lines (R1, R2, G1, G2 (reversed?)) from
+	LED_DATA_DATA	0
+	LED_DATA_R1	BIT2
+	LED_DATA_R2	BIT3
+	LED_DATA_G1	BIT0
+	LED_DATA_G2	BIT1
+	// Row selection from
+	LED_DATA_ROW	4
+
+	LED_CTRL_PORT	P5
+	LED_CTRL_STB	BIT5
+	LED_CTRL_CLK	BIT4
+	LED_CTRL_EN	BIT3

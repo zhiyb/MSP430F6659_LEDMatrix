@@ -4,6 +4,6 @@
 #define PACLK	(ACLK / 32)
 #define ACLK	32768
 #define MCLK	20000000
-#define SMCLK	(MCLK / 4)
+#define SMCLK	(MCLK / 1)
 
 #endif /* CLOCKS_H_ */

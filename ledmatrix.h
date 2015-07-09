@@ -28,6 +28,7 @@ namespace ledMatrix
 		BufferRed = 0, BufferGreen = 1};
 
 	extern struct data_t {
+		bool dbufEnable;
 		uint16_t x, y;
 		uint16_t clr;
 		const struct font_t *font;
@@ -41,6 +42,8 @@ namespace ledMatrix
 	void fill(uint16_t clr);
 	void testPattern(bool inv);
 	void swapBuffer();
+	static inline bool doubleBufferEnabled() {return data.dbufEnable;}
+	static inline void setDoubleBufferEnabled(const bool e) {data.dbufEnable = e;}
 
 	static inline uint16_t x() {return data.x;}
 	static inline uint16_t y() {return data.y;}

@@ -27,15 +27,15 @@ namespace ledMatrix
 
 void ledMatrix::swapBuffer()
 {
+	if (!data.dbufEnable)
+		return;
 	buffer = buffer == &dispBuffer[0] ? &dispBuffer[1] : &dispBuffer[0];
 }
 
 void ledMatrix::drawString(const char *str)
 {
-	while (*str) {
-		drawChar(*str++);
-		data.x += 6;
-	}
+	while (*str)
+		drawNextChar(*str++);
 }
 
 bool ledMatrix::setFont(uint8_t w, uint8_t h)
@@ -137,6 +137,7 @@ void ledMatrix::init()
 	row = 0;
 	buffer = &dispBuffer[0];
 	data.font = &fonts;
+	data.dbufEnable = false;
 	clean();
 	swapBuffer();
 	clean();
@@ -195,7 +196,7 @@ void TIMER0_A0_ISR()
 {
 	using namespace ledMatrix;
 	uint16_t (*buff)[2][LEDMATRIX_H][LEDMATRIX_W / 16];
-	buff = buffer == &dispBuffer[0] ? &dispBuffer[1] : &dispBuffer[0];
+	buff = data.dbufEnable ? buffer == &dispBuffer[0] ? &dispBuffer[1] : &dispBuffer[0] : buffer;
 
 	TA0CCTL0 &= ~CCIFG;	// Clear interrupt flag
 	uint8_t prevRow = row;
@@ -230,7 +231,8 @@ void TIMER0_A0_ISR()
 	}
 
 	// Update current row
-	PXOUT(LED_CTRL_PORT) |= LED_CTRL_EN | LED_CTRL_STB;
+	PXOUT(LED_CTRL_PORT) |= LED_CTRL_EN;
+	PXOUT(LED_CTRL_PORT) |= LED_CTRL_STB;
 	PXOUT(LED_DATA_PORT) = row;
 	PXOUT(LED_CTRL_PORT) &= ~(LED_CTRL_STB | LED_CTRL_EN);
 

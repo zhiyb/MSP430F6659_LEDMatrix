@@ -53,6 +53,7 @@ int main(void)
 	static uint16_t cnt = 0;
 
 loop:
+	clean();
 	/*if (!pool1s())
 		goto loop;*/
 	display::timeFS();

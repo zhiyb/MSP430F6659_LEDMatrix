@@ -1,5 +1,5 @@
 /*
- * Author: Yubo Zhi (yz39g13@soton.ac.uk)
+ * Author: Yubo Zhi (normanzyb@gmail.com)
  */
 
 #ifndef ASCII_H
@@ -9,11 +9,13 @@
 extern "C" {
 #endif
 
-#ifndef ASCII_STRIPPED
-extern const unsigned char ascii_8x6[99][8];
-#else
-extern const unsigned char ascii_8x6[96][6];
-#endif
+struct font_t {
+	const unsigned char width, height, size, offset;
+	const unsigned char *ptr;
+	const struct font_t *next;
+};
+
+extern const struct font_t fonts;
 
 #ifdef __cplusplus
 }

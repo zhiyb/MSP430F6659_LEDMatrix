@@ -12,16 +12,17 @@
 #include "ledmatrix.h"
 #include "ascii.h"
 
-static uint8_t row;
+__attribute__((section(".TI.noinit"))) static uint8_t row;
 
 namespace ledMatrix
 {
-	uint16_t (*buffer)[2][LEDMATRIX_H][LEDMATRIX_W / 16];
-	uint16_t dispBuffer[2][2][LEDMATRIX_H][LEDMATRIX_W / 16];
+	__attribute__((section(".TI.noinit"))) uint16_t (*buffer)[2][LEDMATRIX_H][LEDMATRIX_W / 16];
+	__attribute__((section(".TI.noinit"))) uint16_t dispBuffer[2][2][LEDMATRIX_H][LEDMATRIX_W / 16];
 #ifdef LEDMATRIX_POOL1S
 	static volatile bool sec = false;
 #endif
-	data_t data;
+	__attribute__((section(".TI.noinit"))) data_t data;
+	static void drawSegment(uint16_t *buf[], const uint16_t disp, const uint16_t mask);
 }
 
 void ledMatrix::swapBuffer()
@@ -37,27 +38,82 @@ void ledMatrix::drawString(const char *str)
 	}
 }
 
+bool ledMatrix::setFont(uint8_t w, uint8_t h)
+{
+	if (font()->width == w && font()->height == h)
+		return true;
+	const struct font_t *ptr = &fonts;
+	while (ptr != 0)
+		if (ptr->width == w && ptr->height == h) {
+			data.font = ptr;
+			return true;
+		} else
+			ptr = ptr->next;
+	return false;
+}
+
 void ledMatrix::drawChar(const char c)
 {
-	const uint8_t *ptr = ascii_8x6[(uint16_t)c - ' '];
-	uint16_t *buf[2];
+	drawImage_aligned(font()->ptr + font()->size * (c - font()->offset), font()->width, font()->height);
+}
+
+static void ledMatrix::drawSegment(uint16_t *buf[], const uint16_t disp, const uint16_t mask)
+{
+	uint16_t invDisp = ~disp & mask;
+	uint16_t b[2];
+	b[BufferRed] = (data.clr & Foreground & Red ? disp : 0) | (data.clr & Background & Red ? invDisp : 0);
+	b[BufferGreen] = (data.clr & Foreground & Green ? disp : 0) | (data.clr & Background & Green ? invDisp : 0);
+	*buf[BufferRed] = (*buf[BufferRed] & ~((data.clr & TransparentRed & Foreground ? disp : mask) & (data.clr & TransparentRed & Background ? invDisp : mask))) | b[BufferRed];
+	*buf[BufferGreen] = (*buf[BufferGreen] & ~((data.clr & TransparentGreen & Foreground ? disp : mask) & (data.clr & TransparentGreen & Background ? invDisp : mask))) | b[BufferGreen];
+}
+
+void ledMatrix::drawImage_aligned(const uint8_t *ptr, const uint16_t w, const uint16_t h)
+{
 	uint16_t x = data.x / 16;
+	uint16_t *buf[2];
 	buf[BufferRed] = &(*buffer)[BufferRed][data.y][x];
 	buf[BufferGreen] = &(*buffer)[BufferGreen][data.y][x];
 	x = data.x % 16;
-	for (uint16_t y = 8; y != 0; y--) {
-		uint16_t disp = (*ptr++ & 0xFC) << 8, invDisp = ~disp & 0xFC00;
-		uint16_t b[2];
-		b[BufferRed] = (data.clr & Foreground & Red ? disp : 0) | (data.clr & Background & Red ? invDisp : 0);
-		b[BufferGreen] = (data.clr & Foreground & Green ? disp : 0) | (data.clr & Background & Green ? invDisp : 0);
-		*buf[BufferRed] = (*buf[BufferRed] & ~(0xFC00 >> x)) | (b[BufferRed] >> x);
-		*buf[BufferGreen] = (*buf[BufferGreen] & ~(0xFC00 >> x)) | (b[BufferGreen] >> x);
-		if (x > 16 - 6) {
-			*(buf[BufferRed] + 1) = (*(buf[BufferRed] + 1) & ~(0xFC00 << (16 - x))) | (b[BufferRed] << (16 - x));
-			*(buf[BufferGreen] + 1) = (*(buf[BufferGreen] + 1) & ~(0xFC00 << (16 - x))) | (b[BufferGreen] << (16 - x));
+	bool aligned = x % 8 == 0;
+	uint16_t segments = (x + w - 1) / 16; // Extra segments
+	uint16_t mask = 0xFFFF >> x, shift;
+	if (segments == 0)
+		mask &= 0xFFFF << (16 - x - w);
+	else
+		shift = x == 0 ? 0 : 16 - x;
+	for (uint16_t y = h; y != 0; y--) {
+		// Draw first segment
+		uint16_t disp = *ptr << 8;
+		if (w > 8 && x < 8)
+			disp |= *++ptr;
+		disp = (disp >> x) & mask;
+		drawSegment(buf, disp, mask);
+
+		if (segments != 0) {
+			// Complete segments
+			for (uint16_t s = segments - 1; s != 0; s--) {
+				// IGNORE FOR NOW
+				fill(Red | Green);
+			}
+
+			// Last segment
+			if (aligned)	// Alignment
+				ptr++;
+			disp = *ptr;
+			if (8 - shift % 8 < (x + w) % 16)
+				disp = (disp << 8) | *++ptr;
+			else if (w <= 8)
+				disp <<= 8;
+			uint16_t mask = 0xFFFF << shift;
+			disp <<= shift;
+			buf[BufferRed]++;
+			buf[BufferGreen]++;
+			drawSegment(buf, disp, mask);
 		}
-		buf[BufferRed] += LEDMATRIX_W / 16;
-		buf[BufferGreen] += LEDMATRIX_W / 16;
+
+		buf[BufferRed] += LEDMATRIX_W / 16 - segments;
+		buf[BufferGreen] += LEDMATRIX_W / 16 - segments;
+		ptr++;
 	}
 }
 
@@ -80,6 +136,7 @@ void ledMatrix::init()
 	// Variable initialisation
 	row = 0;
 	buffer = &dispBuffer[0];
+	data.font = &fonts;
 	clean();
 	swapBuffer();
 	clean();

@@ -18,3 +18,7 @@ LED matrix board Connections:
 	LED_CTRL_STB	BIT5
 	LED_CTRL_CLK	BIT4
 	LED_CTRL_EN	BIT3
+
+Additional modules:  
+CC3000 - WiFi connectivity, using USCI_B2(SPI) at PORT9 + Interrupt P4.7  
+FreeRTOS - task management  

@@ -147,10 +147,10 @@ void ledMatrix::init()
 	setColour(Blank);
 
 	// Timer initialisation
-	TA0CTL = TASSEL__SMCLK | ID__1 | MC__UP | TACLR | TAIE;
-	TA0EX0 = TAIDEX_0;
-	TA0CCR0 = SMCLK / (LEDMATRIX_H / 2) / LEDMATRIX_FPS;
-	TA0CCTL0 = OUTMOD_0 | CCIE;
+	TA1CTL = TASSEL__SMCLK | ID__1 | MC__UP | TACLR | TAIE;
+	TA1EX0 = TAIDEX_0;
+	TA1CCR0 = SMCLK / (LEDMATRIX_H / 2) / LEDMATRIX_FPS;
+	TA1CCTL0 = OUTMOD_0 | CCIE;
 }
 
 void ledMatrix::clean()
@@ -193,14 +193,14 @@ bool ledMatrix::pool1s()
 }
 #endif
 
-__attribute__((interrupt(TIMER0_A0_VECTOR)))
-void TIMER0_A0_ISR()
+__attribute__((interrupt(TIMER1_A0_VECTOR)))
+void TIMER1_A0_ISR()
 {
 	using namespace ledMatrix;
 	uint16_t (*buff)[2][LEDMATRIX_H][LEDMATRIX_W / 16];
 	buff = data.dbufEnable ? buffer == &dispBuffer[0] ? &dispBuffer[1] : &dispBuffer[0] : buffer;
 
-	TA0CCTL0 &= ~CCIFG;	// Clear interrupt flag
+	TA1CCTL0 &= ~CCIFG;	// Clear interrupt flag
 	uint8_t prevRow = row;
 	row = row == 0 ? (LEDMATRIX_H / 2 - 1) << LED_DATA_ROW : row - (1 << LED_DATA_ROW);
 
@@ -245,5 +245,5 @@ void TIMER0_A0_ISR()
 			__delay_cycles(100 * (MCLK / 1000));
 		}
 #endif
-	TA0CTL &= ~TAIFG;
+	TA1CTL &= ~TAIFG;
 }

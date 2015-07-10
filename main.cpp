@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <string.h>
 #include <msp430.h>
 #include "clocks.h"
 #include "macros.h"
@@ -12,7 +13,10 @@
 #include <hci.h>
 #include <nvmem.h>
 #include <netapp.h>
-#include <string.h>
+
+#include "FreeRTOSConfig.h"
+#include <FreeRTOS.h>
+#include <task.h>
 
 #define	NETAPP_IPCONFIG_MAC_OFFSET	(20)
 #define	HCI_EVENT_MASK	(HCI_EVNT_WLAN_KEEPALIVE | HCI_EVNT_WLAN_UNSOL_INIT /*|	HCI_EVNT_WLAN_ASYNC_PING_REPORT*/)
@@ -53,6 +57,38 @@ void CC3000_UsynchCallback(long	lEventType, char *data,	unsigned char length)
 	}
 }
 
+void wifiMangTask(void *pvParameters)
+{
+#if 0
+	static char ssid[] = "ZZFNB00000017_Network";
+	static char key[] = "f3ei-zeb6-m35o";
+#else
+	static char ssid[] = "Network!";
+	static char key[] = "WirelessNetwork";
+#endif
+loop:
+	if (cc3000.state == cc3000_info_t::Disconnected) {
+		cc3000.state = cc3000_info_t::Connecting;
+		if (wlan_connect(WLAN_SEC_WPA2, ssid, strlen(ssid), 0, (uint8_t *)key, strlen(key)) != 0)
+			cc3000.state = cc3000_info_t::Disconnected;
+	}
+	vTaskDelay(configTICK_RATE_HZ);
+	goto loop;
+}
+
+void dispUpdTask(void *pvParameters)
+{
+	static uint16_t cnt = 0;
+	setDoubleBufferEnabled(true);
+loop:
+	clean();
+	display::timeFS();
+	(*buffer)[BufferGreen][0][0] = cnt++;
+	swapBuffer();
+	vTaskDelay(configTICK_RATE_HZ / 8);
+	goto loop;
+}
+
 void initCC3000()
 {
 	cc3000.state = cc3000_info_t::Disconnected;
@@ -76,21 +112,7 @@ void initCC3000()
 	wlan_set_event_mask(HCI_EVENT_MASK);
 	wlan_disconnect();
 	setXY(0, 8);
-	drawString("W_CONNECT");
-#if 0
-	char ssid[] = "ZZFNB00000017_Network";
-	char key[] = "f3ei-zeb6-m35o";
-#else
-	char ssid[] = "Network!";
-	char key[] = "WirelessNetwork";
-#endif
-	cc3000.state = cc3000_info_t::Connecting;
-	if (wlan_connect(WLAN_SEC_WPA2, ssid, strlen(ssid), 0, (uint8_t *)key, strlen(key)) != 0) {
-		setXY(0, 16);
-		drawString("W_CON_FAIL");
-		for (;;);
-	} else
-		cc3000.state = cc3000_info_t::Disconnected;
+	drawString("W_STARTED");
 }
 
 void init(void)
@@ -113,8 +135,8 @@ void init(void)
 	UCSCTL2 = FLLD__1 | 19;
 	// [SELREF] FLL reference (5, XT2CLK), [FLLREFDIV] reference divider (4, f(FLLREFCLK)/12)
 	UCSCTL3 = SELREF__XT2CLK | FLLREFDIV__12;
-	// [SELA] ACLK source (2, REFOCLK), [SELS] SMCLK source (3, DCOCLK), [SELM] MCLK source (3, DCOCLK)
-	UCSCTL4 = SELA__REFOCLK | SELS__DCOCLK | SELM__DCOCLK;
+	// [SELA] ACLK source (2, XT1CLK), [SELS] SMCLK source (3, DCOCLK), [SELM] MCLK source (3, DCOCLK)
+	UCSCTL4 = SELA__XT1CLK | SELS__DCOCLK | SELM__DCOCLK;
 	// [DIVPA] (5, 32), [DIVA], [DIVS], [DIVM]
 	UCSCTL5 = DIVPA__32 | DIVA__1 | DIVS__1 | DIVM__1;
 	UCSCTL6 = XT2DRIVE_1 /*| XT2BYPASS*/ /*| XT2OFF*/ | XT1DRIVE_0 /*| XTS*/ | XT1BYPASS | XT1OFF;
@@ -132,20 +154,13 @@ void init(void)
 	__enable_interrupt();
 
 	initCC3000();
+	xTaskCreate(wifiMangTask, "WiFiMang", configMINIMAL_STACK_SIZE * 2, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(dispUpdTask, "DispUpd", configMINIMAL_STACK_SIZE * 2, NULL, tskIDLE_PRIORITY + 2, NULL);
 }
 
 int main(void)
 {
 	::init();
-
-	static uint16_t cnt = 0;
-	setDoubleBufferEnabled(true);
-loop:
-	clean();
-	/*if (!pool1s())
-		goto loop;*/
-	display::timeFS();
-	(*buffer)[BufferGreen][0][0] = cnt++;
-	swapBuffer();
-	goto loop;
+	vTaskStartScheduler();
+	for (;;);
 }

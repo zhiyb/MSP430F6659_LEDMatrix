@@ -57,8 +57,9 @@ void ledMatrix::drawChar(const char c)
 	drawImage_aligned(font()->ptr + font()->size * (c - font()->offset), font()->width, font()->height);
 }
 
-static void ledMatrix::drawSegment(uint16_t *buf[], const uint16_t disp, const uint16_t mask)
+static void ledMatrix::drawSegment(uint16_t *buf[], uint16_t disp, const uint16_t mask)
 {
+	disp &= mask;
 	uint16_t invDisp = ~disp & mask;
 	uint16_t b[2];
 	b[BufferRed] = (data.clr & Foreground & Red ? disp : 0) | (data.clr & Background & Red ? invDisp : 0);
@@ -86,7 +87,7 @@ void ledMatrix::drawImage_aligned(const uint8_t *ptr, const uint16_t w, const ui
 		uint16_t disp = *ptr << 8;
 		if (w > 8 && x < 8)
 			disp |= *++ptr;
-		disp = (disp >> x) & mask;
+		disp = disp >> x;
 		drawSegment(buf, disp, mask);
 
 		if (segments != 0) {
@@ -100,11 +101,12 @@ void ledMatrix::drawImage_aligned(const uint8_t *ptr, const uint16_t w, const ui
 			if (aligned)	// Alignment
 				ptr++;
 			disp = *ptr;
-			if (8 - shift % 8 < (x + w) % 16)
+			uint16_t rem = (x + w) % 16;
+			if (8 - shift % 8 < rem)
 				disp = (disp << 8) | *++ptr;
 			else if (w <= 8)
 				disp <<= 8;
-			uint16_t mask = 0xFFFF << shift;
+			uint16_t mask = 0xFFFF << (16 - rem);
 			disp <<= shift;
 			buf[BufferRed]++;
 			buf[BufferGreen]++;

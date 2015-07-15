@@ -12,9 +12,16 @@
 #include <msp430.h>
 #include "ledmatrix.h"
 
+#include <data_types.h>
+#include <socket.h>
+
 extern struct cc3000_info_t {
-	volatile enum {Disconnected = 0, Connecting = 0x1000, Connected = 0x8000, DHCPSuccess = 0x8800, DHCPFailed = 0x8100} state;
+	enum {Disconnected = 0, Connecting = 0x1000, Connected = 0x8000, ConnectionMask = 0xF000,
+		DHCPSuccess = 0x0800, DHCPFailed = 0x0100, DHCPMask = 0x0F00,
+		SocketDisconnected = 0, SocketConnecting = 0x0010, SocketConnected = 0x0080, SocketMask = 0x00F0};
+	volatile uint16_t state;
 	volatile bool newEvent;
+	INT32 socket;
 	uint8_t ip[4];
 } cc3000;
 

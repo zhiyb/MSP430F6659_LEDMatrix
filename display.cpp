@@ -63,7 +63,7 @@ void display::timeFS()
 	drawBCD(t.i.min);
 
 	setXY(LEDMATRIX_W - 8, 0);
-	switch (cc3000.state) {
+	switch (cc3000.state & ~cc3000_info_t::SocketMask & ~0x000F) {
 	case cc3000_info_t::Disconnected:
 		setColour(LEDMATRIX_COLOUR(Red, Blank));
 		drawImage_aligned(wifi[5], 8, 8);
@@ -76,11 +76,21 @@ void display::timeFS()
 		setColour(LEDMATRIX_COLOUR(Red, Blank));
 		drawImage_aligned(wifi[4], 8, 8);
 		break;
-	case cc3000_info_t::DHCPSuccess:
-		setColour(LEDMATRIX_COLOUR(Red | Green, Blank));
-		drawImage_aligned(wifi[4], 8, 8);
+	case cc3000_info_t::Connected | cc3000_info_t::DHCPSuccess:
+		if ((cc3000.state & cc3000_info_t::SocketMask) == cc3000_info_t::SocketConnected) {
+			setColour(LEDMATRIX_COLOUR(Green, Blank));
+			drawImage_aligned(wifi[4], 8, 8);
+		} else {
+			if ((cc3000.state & cc3000_info_t::SocketMask) == cc3000_info_t::SocketConnecting) {
+				setColour(LEDMATRIX_COLOUR(Green, Blank));
+				drawImage_aligned(wifi[(rtc::ps() >> 5) & 0x03], 8, 8);
+			} else {
+				setColour(LEDMATRIX_COLOUR(Red | Green, Blank));
+				drawImage_aligned(wifi[4], 8, 8);
+			}
+		}
 		break;
-	case cc3000_info_t::DHCPFailed:
+	case cc3000_info_t::Connected | cc3000_info_t::DHCPFailed:
 		setColour(LEDMATRIX_COLOUR(Red, Blank));
 		drawImage_aligned(wifi[5], 8, 8);
 		setColour(LEDMATRIX_COLOUR(Red | Transparent, Transparent));

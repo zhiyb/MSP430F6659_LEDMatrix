@@ -216,7 +216,7 @@ void wlan_init(		tWlanCB	 	sWlanCB,
 //
 //*****************************************************************************
 void SpiReceiveHandler(void *pvBuffer)
-{	
+{
 	tSLInformation.usEventOrDataReceived = 1;
 	tSLInformation.pucReceivedData = (UINT8 *)pvBuffer;
 

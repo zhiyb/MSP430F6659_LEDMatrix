@@ -31,7 +31,7 @@
 /* ============================================================================ */
 
 /******************************************************************************/
-/* lnk_msp430f6659.cmd - LINKER COMMAND FILE FOR LINKING MSP430F6659 PROGRAMS     */
+/* lnk_msp430f6659.cmd - LINKER COMMAND FILE FOR LINKING MSP430F6659 PROGRAMS */
 /*                                                                            */
 /*   Usage:  lnk430 <obj files...>    -o <out file> -m <map file> lnk.cmd     */
 /*           cl430  <src files...> -z -o <out file> -m <map file> lnk.cmd     */

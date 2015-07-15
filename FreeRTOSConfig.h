@@ -98,7 +98,7 @@
 #define configUSE_TICK_HOOK				1
 #define configCPU_CLOCK_HZ				( MCLK )
 #define configLFXT_CLOCK_HZ       		( ACLK )
-#define configTICK_RATE_HZ				( ( TickType_t ) 1000 )
+#define configTICK_RATE_HZ				( ( TickType_t ) 1024 )
 #define configMAX_PRIORITIES			( 5 )
 #define configTOTAL_HEAP_SIZE			( ( size_t ) ( 10 * 1024 ) )
 #define configMAX_TASK_NAME_LEN			( 10 )

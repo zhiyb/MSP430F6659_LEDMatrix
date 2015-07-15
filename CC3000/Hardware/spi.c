@@ -371,8 +371,7 @@ long SpiReadDataCont(void)
 	case HCI_TYPE_EVNT:
 		{
 			// Calculate the rest length of the data
-			STREAM_TO_UINT8((char *)(evnt_buff + SPI_HEADER_SIZE),
-											HCI_EVENT_LENGTH_OFFSET, data_to_recv);
+			STREAM_TO_UINT8((char *)(evnt_buff + SPI_HEADER_SIZE), HCI_EVENT_LENGTH_OFFSET, data_to_recv);
 			data_to_recv -= 1;
 
 			// Add padding byte if needed
@@ -467,33 +466,36 @@ void SpiTriggerRxProcessing(void)
 __attribute__((interrupt(PORT4_VECTOR)))
 __interrupt void IntSpiGPIOHandler(void)
 {
-	if (__even_in_range(P4IV, P4IV_P4IFG7) != P4IV_P4IFG7)
-		return;
-	switch (sSpiInformation.ulSpiState) {
-	case eSPI_STATE_POWERUP:
-		//This means IRQ line was low call a callback of HCI Layer to inform
-		//on event
- 		sSpiInformation.ulSpiState = eSPI_STATE_INITIALIZED;
- 		break;
-	case eSPI_STATE_IDLE:
-		sSpiInformation.ulSpiState = eSPI_STATE_READ_IRQ;
+	switch (__even_in_range(P4IV, P4IV_P4IFG7)) {
+	case P4IV_P4IFG7:
+		switch (sSpiInformation.ulSpiState) {
+		case eSPI_STATE_POWERUP:
+			//This means IRQ line was low call a callback of HCI Layer to inform
+			//on event
+			sSpiInformation.ulSpiState = eSPI_STATE_INITIALIZED;
+			break;
+		case eSPI_STATE_IDLE:
+			sSpiInformation.ulSpiState = eSPI_STATE_READ_IRQ;
 
-		/* IRQ line goes down - we are start reception */
-		ASSERT_CS();
+			/* IRQ line goes down - we are start reception */
+			ASSERT_CS();
 
-		// Wait for TX/RX Compete which will come as DMA interrupt
-		SpiReadHeader();
+			SpiReadHeader();
 
-		sSpiInformation.ulSpiState = eSPI_STATE_READ_EOT;
+			sSpiInformation.ulSpiState = eSPI_STATE_READ_EOT;
 
-		SSIContReadOperation();
+			SSIContReadOperation();
+			break;
+		case eSPI_STATE_WRITE_IRQ:
+			SpiWriteDataSynchronous(sSpiInformation.pTxPacket, sSpiInformation.usTxPacketLength);
+
+			sSpiInformation.ulSpiState = eSPI_STATE_IDLE;
+
+			DEASSERT_CS();
+		}
 		break;
-	case eSPI_STATE_WRITE_IRQ:
-		SpiWriteDataSynchronous(sSpiInformation.pTxPacket, sSpiInformation.usTxPacketLength);
-
-		sSpiInformation.ulSpiState = eSPI_STATE_IDLE;
-
-		DEASSERT_CS();
+	default:
+		break;
 	}
 }
 

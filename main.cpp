@@ -13,6 +13,7 @@
 #include <hci.h>
 #include <nvmem.h>
 #include <netapp.h>
+#include <socket.h>
 
 #include "FreeRTOSConfig.h"
 #include <FreeRTOS.h>
@@ -45,14 +46,14 @@ void CC3000_UsynchCallback(long	lEventType, char *data,	unsigned char length)
 		// Only	if status is OK, the flag is set to 1 and the
 		// addresses are valid.
 		if (*(data + NETAPP_IPCONFIG_MAC_OFFSET) == 0) {
-			cc3000.state = cc3000_info_t::DHCPSuccess;
+			cc3000.state = (cc3000.state & ~cc3000_info_t::DHCPMask) | cc3000_info_t::DHCPSuccess;
 			volatile uint8_t *store = cc3000.ip;
 			uint8_t i = 3;
 			do
 				*store++ = *(data + i);
 			while (i-- != 0);
 		} else
-			cc3000.state = cc3000_info_t::DHCPFailed;
+			cc3000.state = (cc3000.state & ~cc3000_info_t::DHCPMask) | cc3000_info_t::DHCPFailed;
 		break;
 	}
 }
@@ -67,12 +68,38 @@ void wifiMangTask(void *pvParameters)
 	static char key[] = "WirelessNetwork";
 #endif
 loop:
+	vTaskDelay(configTICK_RATE_HZ);
 	if (cc3000.state == cc3000_info_t::Disconnected) {
 		cc3000.state = cc3000_info_t::Connecting;
 		if (wlan_connect(WLAN_SEC_WPA2, ssid, strlen(ssid), 0, (uint8_t *)key, strlen(key)) != 0)
 			cc3000.state = cc3000_info_t::Disconnected;
+	} else if ((cc3000.state & cc3000_info_t::DHCPMask) == cc3000_info_t::DHCPSuccess) {
+		while (cc3000.socket == -1) {
+			cc3000.state = (cc3000.state & ~cc3000_info_t::SocketMask) | cc3000_info_t::SocketConnecting;
+			cc3000.socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		}
+		if ((cc3000.state & cc3000_info_t::SocketMask) != cc3000_info_t::SocketConnected) {
+			sockaddr_in destAddr;
+			destAddr.sin_family = AF_INET;
+			destAddr.sin_port = htons(6666);
+			const uint8_t ip[4] = {192, 168, 0, 12};
+			destAddr.sin_addr.s_addr = *(uint32_t *)ip;
+			memset(destAddr.sin_zero, 0, 8);
+			if (connect(cc3000.socket, (sockaddr *)&destAddr, sizeof(sockaddr)) == 0)
+				cc3000.state = (cc3000.state & ~cc3000_info_t::SocketMask) | cc3000_info_t::SocketConnected;
+			else {
+				cc3000.socket = -1;
+				cc3000.state = (cc3000.state & ~cc3000_info_t::SocketMask) | cc3000_info_t::SocketDisconnected;
+			}
+		} else if ((cc3000.state & cc3000_info_t::SocketMask) == cc3000_info_t::SocketConnected) {
+			char str[] = "Hello, world!";
+			if (send(cc3000.socket, str, strlen(str) + 1, 0) != 0) {
+				closesocket(cc3000.socket);
+				cc3000.socket = -1;
+				cc3000.state = (cc3000.state & ~cc3000_info_t::SocketMask) | cc3000_info_t::SocketDisconnected;
+			}
+		}
 	}
-	vTaskDelay(configTICK_RATE_HZ);
 	goto loop;
 }
 
@@ -93,16 +120,29 @@ void initCC3000()
 {
 	cc3000.state = cc3000_info_t::Disconnected;
 	cc3000.newEvent = false;
+	cc3000.socket = -1;
 
+	cc3000_init(CC3000_UsynchCallback);
 	setColour((Red & Foreground) | (Blank & Background));
 	clean();
-	cc3000_init(CC3000_UsynchCallback);
 	setXY(0, 0);
 	drawString("W_INITED");
 	wlan_start(0);
+
+#if 0
+	uint8_t	mac[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
+	nvmem_set_mac_address(mac);
+	__delay_cycles(MCLK / 1000 * 50);	// 50ms
+	wlan_stop();
+	__delay_cycles(MCLK / 1000 * 50);	// 50ms
+	wlan_start(0);
+	__delay_cycles(MCLK / 1000 * 50);	// 50ms
+#endif
+
 #if 0
 	wlan_ioctl_set_connection_policy(0, 0, 0);
 	wlan_ioctl_del_profile(255);
+	__delay_cycles(MCLK / 1000 * 5);	// 5ms
 	wlan_stop();
 	__delay_cycles(MCLK / 1000 * 5);	// 5ms
 	setXY(0, 0);
@@ -110,9 +150,9 @@ void initCC3000()
 	wlan_start(0);
 #endif
 	wlan_set_event_mask(HCI_EVENT_MASK);
-	wlan_disconnect();
-	setXY(0, 8);
-	drawString("W_STARTED");
+	//wlan_disconnect();
+	//setXY(0, 8);
+	//drawString("W_STARTED");
 }
 
 void init(void)
@@ -154,8 +194,8 @@ void init(void)
 	__enable_interrupt();
 
 	initCC3000();
-	xTaskCreate(wifiMangTask, "WiFiMang", configMINIMAL_STACK_SIZE * 2, NULL, tskIDLE_PRIORITY + 1, NULL);
-	xTaskCreate(dispUpdTask, "DispUpd", configMINIMAL_STACK_SIZE * 2, NULL, tskIDLE_PRIORITY + 2, NULL);
+	xTaskCreate(wifiMangTask, "WiFiMang", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(dispUpdTask, "DispUpd", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
 }
 
 int main(void)

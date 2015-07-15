@@ -97,7 +97,7 @@ task.h is included from an application file. */
 static void prvHeapInit( void );
 
 /* Allocate the memory for the heap. */
-static uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
+__attribute__((section(".TI.noinit"))) static uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
 
 /* Define the linked list structure.  This is used to link free blocks in order
 of their size. */

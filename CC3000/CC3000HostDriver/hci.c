@@ -74,6 +74,10 @@ UINT16 hci_command_send(UINT16 usOpcode, UINT8 *pucBuff, UINT8 ucArgsLength)
 	stream = UINT16_TO_STREAM(stream, usOpcode);
 	UINT8_TO_STREAM(stream, ucArgsLength);
 
+	//Fix for SimpleLinkWaitEvent may miss the event if it
+	// occured before this line in SimpleLinkWaitEvent
+	tSLInformation.usRxEventOpcode = usOpcode;
+
 	//Update the opcode of the event we will be waiting for
 	SpiWrite(pucBuff, ucArgsLength + SIMPLE_LINK_HCI_CMND_HEADER_SIZE);
 

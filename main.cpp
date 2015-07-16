@@ -79,6 +79,14 @@ loop:
 		vTaskDelay(1);
 		if (wlan_connect(WLAN_SEC_WPA2, ssid, strlen(ssid), 0, (uint8_t *)key, strlen(key)) != 0)
 			cc3000.state = cc3000_info_t::Disconnected;
+	} else if (cc3000.state == cc3000_info_t::Connecting) {
+		uint16_t i;
+		for (i = 10; cc3000.state == cc3000_info_t::Connecting && i != 0; i--)
+			vTaskDelay(configTICK_RATE_HZ);
+		if (i == 0) {
+			wlan_disconnect();
+			cc3000.state = cc3000_info_t::Disconnected;
+		}
 	} else if ((cc3000.state & cc3000_info_t::DHCPMask) == cc3000_info_t::DHCPSuccess) {
 		while (cc3000.socket == -1) {
 			cc3000.state = (cc3000.state & ~cc3000_info_t::SocketMask) | cc3000_info_t::SocketConnecting;

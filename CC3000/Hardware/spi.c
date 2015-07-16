@@ -463,39 +463,32 @@ void SpiTriggerRxProcessing(void)
 //!          it set the corresponding /CS in active state.
 //
 //*****************************************************************************
-__attribute__((interrupt(PORT4_VECTOR)))
-__interrupt void IntSpiGPIOHandler(void)
+void cc3000ISR(void)
 {
-	switch (__even_in_range(P4IV, P4IV_P4IFG7)) {
-	case P4IV_P4IFG7:
-		switch (sSpiInformation.ulSpiState) {
-		case eSPI_STATE_POWERUP:
-			//This means IRQ line was low call a callback of HCI Layer to inform
-			//on event
-			sSpiInformation.ulSpiState = eSPI_STATE_INITIALIZED;
-			break;
-		case eSPI_STATE_IDLE:
-			sSpiInformation.ulSpiState = eSPI_STATE_READ_IRQ;
-
-			/* IRQ line goes down - we are start reception */
-			ASSERT_CS();
-
-			SpiReadHeader();
-
-			sSpiInformation.ulSpiState = eSPI_STATE_READ_EOT;
-
-			SSIContReadOperation();
-			break;
-		case eSPI_STATE_WRITE_IRQ:
-			SpiWriteDataSynchronous(sSpiInformation.pTxPacket, sSpiInformation.usTxPacketLength);
-
-			sSpiInformation.ulSpiState = eSPI_STATE_IDLE;
-
-			DEASSERT_CS();
-		}
+	switch (sSpiInformation.ulSpiState) {
+	case eSPI_STATE_POWERUP:
+		//This means IRQ line was low call a callback of HCI Layer to inform
+		//on event
+		sSpiInformation.ulSpiState = eSPI_STATE_INITIALIZED;
 		break;
-	default:
+	case eSPI_STATE_IDLE:
+		sSpiInformation.ulSpiState = eSPI_STATE_READ_IRQ;
+
+		/* IRQ line goes down - we are start reception */
+		ASSERT_CS();
+
+		SpiReadHeader();
+
+		sSpiInformation.ulSpiState = eSPI_STATE_READ_EOT;
+
+		SSIContReadOperation();
 		break;
+	case eSPI_STATE_WRITE_IRQ:
+		SpiWriteDataSynchronous(sSpiInformation.pTxPacket, sSpiInformation.usTxPacketLength);
+
+		sSpiInformation.ulSpiState = eSPI_STATE_IDLE;
+
+		DEASSERT_CS();
 	}
 }
 

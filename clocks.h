@@ -6,4 +6,6 @@
 #define MCLK	20000000UL
 #define SMCLK	(MCLK / 1)
 
+#define BAUD	100000UL
+
 #endif /* CLOCKS_H_ */

@@ -74,6 +74,7 @@ extern void SpiResumeSpi(void);
 extern long TXBufferIsEmpty(void);
 extern long RXBufferIsEmpty(void);
 extern void SpiPauseSpi(void);
+extern void cc3000ISR(void);
 //*****************************************************************************
 //
 // Mark the end of the C bindings section for C++ compilers.

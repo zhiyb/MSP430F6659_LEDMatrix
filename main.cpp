@@ -6,6 +6,7 @@
 #include "ledmatrix.h"
 #include "rtc.h"
 #include "display.h"
+#include "uart.h"
 
 #include <cc3000.h>
 #include <host_driver_version.h>
@@ -14,10 +15,12 @@
 #include <nvmem.h>
 #include <netapp.h>
 #include <socket.h>
+#include <spi.h>
 
 #include "FreeRTOSConfig.h"
 #include <FreeRTOS.h>
 #include <task.h>
+#include <queue.h>
 
 #define	NETAPP_IPCONFIG_MAC_OFFSET	(20)
 #define	HCI_EVENT_MASK	(HCI_EVNT_WLAN_KEEPALIVE | HCI_EVNT_WLAN_UNSOL_INIT /*|	HCI_EVNT_WLAN_ASYNC_PING_REPORT*/)
@@ -103,6 +106,43 @@ loop:
 	goto loop;
 }
 
+static QueueHandle_t xCC3000INTQueue = NULL;
+
+void cc3000INTTask(void *pvParameters)
+{
+	// CC3000 interrupt polling
+	for (;;) {
+		uint16_t recvMsg;
+		while (xQueueReceive(xCC3000INTQueue, &recvMsg, portMAX_DELAY) != pdTRUE);
+		cc3000ISR();
+	}
+}
+
+__attribute__((interrupt(PORT4_VECTOR)))
+__interrupt void IntSpiGPIOHandler(void)
+{
+	static const uint16_t cc3000Msg = P4IV_P4IFG7;
+	switch (__even_in_range(P4IV, P4IV_P4IFG7)) {
+	case P4IV_P4IFG7:
+		if (xCC3000INTQueue == NULL)
+			cc3000ISR();
+		else {
+			BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+			xQueueSendFromISR(xCC3000INTQueue, &cc3000Msg, &xHigherPriorityTaskWoken);
+
+			/* If writing to xQueue caused a task to unblock, and the unblocked task
+			has a priority equal to or above the task that this interrupt interrupted,
+			then xHigherPriorityTaskWoken will have been set to pdTRUE internally within
+			xQueuesendFromISR(), and portEND_SWITCHING_ISR() will ensure that this
+			interrupt returns directly to the higher priority unblocked task. */
+			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 void dispUpdTask(void *pvParameters)
 {
 	static uint16_t cnt = 0;
@@ -184,18 +224,22 @@ void init(void)
 	// UCSCTL9 is bypass settings, not available on MSP430F6659
 
 	rtc::init();
+	uart::init();
 
 	// Stabilise crystals (500ms)
 	__delay_cycles(MCLK / 1000 * 500);
 	// [UCSCTL7] Clear fault flags
 	UCSCTL7 &= 0xFFF0;
 
+	uart::puts("Hello, world!\r\n");
 	ledMatrix::init();
 	__enable_interrupt();
 
 	initCC3000();
+	xCC3000INTQueue = xQueueCreate(3, 2);
 	xTaskCreate(wifiMangTask, "WiFiMang", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
-	xTaskCreate(dispUpdTask, "DispUpd", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
+	xTaskCreate(cc3000INTTask, "CC3000INT", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
+	xTaskCreate(dispUpdTask, "DispUpd", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);
 }
 
 int main(void)

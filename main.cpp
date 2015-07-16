@@ -247,8 +247,8 @@ void init(void)
 	initCC3000();
 	xCC3000INTQueue = xQueueCreate(3, 2);
 	xTaskCreate(wifiMangTask, "WiFiMang", configMINIMAL_STACK_SIZE * 2, NULL, tskIDLE_PRIORITY + 1, NULL);
-	xTaskCreate(cc3000INTTask, "CC3000INT", configMINIMAL_STACK_SIZE * 4, NULL, tskIDLE_PRIORITY + 2, NULL);
-	xTaskCreate(dispUpdTask, "DispUpd", configMINIMAL_STACK_SIZE * 2, NULL, tskIDLE_PRIORITY + 3, NULL);
+	xTaskCreate(cc3000INTTask, "CC3000INT", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
+	xTaskCreate(dispUpdTask, "DispUpd", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);
 }
 
 int main(void)

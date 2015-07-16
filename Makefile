@@ -1,5 +1,5 @@
 TRG	= server
-SRC	= server.c
+SRC	= main.c handle.c
 
 CROSS_COMPILE	= mips-openwrt-linux-
 LIBS		= -nodefaultlibs -lgcc -lc -luClibc++

@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <msp430.h>
@@ -71,9 +72,11 @@ void wifiMangTask(void *pvParameters)
 	static char key[] = "WirelessNetwork";
 #endif
 loop:
-	vTaskDelay(configTICK_RATE_HZ);
+	uart::puts("wifiMang(");
 	if (cc3000.state == cc3000_info_t::Disconnected) {
 		cc3000.state = cc3000_info_t::Connecting;
+		wlan_disconnect();
+		vTaskDelay(1);
 		if (wlan_connect(WLAN_SEC_WPA2, ssid, strlen(ssid), 0, (uint8_t *)key, strlen(key)) != 0)
 			cc3000.state = cc3000_info_t::Disconnected;
 	} else if ((cc3000.state & cc3000_info_t::DHCPMask) == cc3000_info_t::DHCPSuccess) {
@@ -103,6 +106,8 @@ loop:
 			}
 		}
 	}
+	uart::puts(")\r\n");
+	vTaskDelay(configTICK_RATE_HZ);
 	goto loop;
 }
 
@@ -111,11 +116,13 @@ static QueueHandle_t xCC3000INTQueue = NULL;
 void cc3000INTTask(void *pvParameters)
 {
 	// CC3000 interrupt polling
-	for (;;) {
-		uint16_t recvMsg;
-		while (xQueueReceive(xCC3000INTQueue, &recvMsg, portMAX_DELAY) != pdTRUE);
-		cc3000ISR();
-	}
+polling:
+	uint16_t recvMsg;
+	while (xQueueReceive(xCC3000INTQueue, &recvMsg, portMAX_DELAY) != pdTRUE);
+	uart::puts("cc3000ISR(");
+	cc3000ISR();
+	uart::puts(")\r\n");
+	goto polling;
 }
 
 __attribute__((interrupt(PORT4_VECTOR)))
@@ -148,10 +155,12 @@ void dispUpdTask(void *pvParameters)
 	static uint16_t cnt = 0;
 	setDoubleBufferEnabled(true);
 loop:
+	uart::puts("dispUpd(");
 	clean();
 	display::timeFS();
 	(*buffer)[BufferGreen][0][0] = cnt++;
 	swapBuffer();
+	uart::puts(")\r\n");
 	vTaskDelay(configTICK_RATE_HZ / 8);
 	goto loop;
 }
@@ -231,15 +240,15 @@ void init(void)
 	// [UCSCTL7] Clear fault flags
 	UCSCTL7 &= 0xFFF0;
 
-	uart::puts("Hello, world!\r\n");
+	puts(__DATE__ " " __TIME__ " | Hello, world!");
 	ledMatrix::init();
 	__enable_interrupt();
 
 	initCC3000();
 	xCC3000INTQueue = xQueueCreate(3, 2);
-	xTaskCreate(wifiMangTask, "WiFiMang", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
-	xTaskCreate(cc3000INTTask, "CC3000INT", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
-	xTaskCreate(dispUpdTask, "DispUpd", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);
+	xTaskCreate(wifiMangTask, "WiFiMang", configMINIMAL_STACK_SIZE * 2, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(cc3000INTTask, "CC3000INT", configMINIMAL_STACK_SIZE * 4, NULL, tskIDLE_PRIORITY + 2, NULL);
+	xTaskCreate(dispUpdTask, "DispUpd", configMINIMAL_STACK_SIZE * 2, NULL, tskIDLE_PRIORITY + 3, NULL);
 }
 
 int main(void)

@@ -15,7 +15,7 @@ namespace uart
 	extern void init();
 	static inline char rx() {while (!(UCA2IFG & UCRXIFG)); return UCA2RXBUF;}
 	static inline void tx(const char c) {while (!(UCA2IFG & UCTXIFG)); UCA2TXBUF = c;}
-	static inline void putchar(const char c) {tx(c);}
+	static inline void putc(const char c) {tx(c);}
 	void puts(const char *str);
 }
 

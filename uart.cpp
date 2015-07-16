@@ -6,6 +6,8 @@
  */
 
 #include <msp430.h>
+#include <string.h>
+#include <stdio.h>
 #include "clocks.h"
 #include "macros.h"
 #include "uart.h"
@@ -41,5 +43,34 @@ void uart::init()
 void uart::puts(const char *str)
 {
 	while (*str)
-		putchar(*str++);
+		putc(*str++);
+}
+
+// Output to stdout
+extern "C" {
+	int puts(const char *_ptr)
+	{
+		uart::puts(_ptr);
+		uart::putc('\r');
+		uart::putc('\n');
+		return strlen(_ptr);
+	}
+
+	int putc(int _c, register FILE *_fp)
+	{
+		uart::putc(_c);
+		return _c;
+	}
+
+	int fputs(const char *_ptr, register FILE *_fp)
+	{
+		uart::puts(_ptr);
+		return strlen(_ptr);
+	}
+
+	int fputc(int _c, register FILE *_fp)
+	{
+		uart::putc(_c);
+		return _c;
+	}
 }

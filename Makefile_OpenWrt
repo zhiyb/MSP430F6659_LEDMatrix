@@ -1,0 +1,4 @@
+CROSS_COMPILE	= mips-openwrt-linux-
+LIBS		= -nodefaultlibs -lgcc -lc -luClibc++
+
+include Makefile

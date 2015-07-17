@@ -1,7 +1,4 @@
 TRG	= server
-SRC	= main.c handle.c
-
-CROSS_COMPILE	= mips-openwrt-linux-
-LIBS		= -nodefaultlibs -lgcc -lc -luClibc++
+SRC	= main.c handle.c socket.c
 
 include Makefile_generic.defs

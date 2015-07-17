@@ -62,6 +62,10 @@ void display::timeFS()
 	setFont(11, 16);
 	drawBCD(t.i.min);
 
+	// Do time sync every hour
+	if (t.i.sec == 0 && t.i.min == 0)
+		cc3000.state &= ~cc3000_info_t::TimeSynced;
+
 	setXY(LEDMATRIX_W - 8, 0);
 	switch (cc3000.state & ~cc3000_info_t::SocketMask & ~0x000F) {
 	case cc3000_info_t::Disconnected:

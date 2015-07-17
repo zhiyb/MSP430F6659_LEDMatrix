@@ -1,5 +1,7 @@
 #include <msp430.h>
+#include <stdio.h>
 #include "cc3000.h"
+#include "CC3000HostDriver/socket.h"
 #include "Hardware/spi.h"
 #include "macros.h"
 
@@ -60,4 +62,34 @@ void cc3000_init(tWlanCB sWlanCB)
 	UCB2CTL1 &= ~UCSWRST;
 
 	wlan_init(sWlanCB, sendPatch, sendPatch, sendPatch, ReadWlanInterruptPin, WlanInterruptEnable, WlanInterruptDisable, WriteWlanPin);
+}
+
+INT16 cc3000_read(const INT32 sockfd, void *buf, INT32 len)
+{
+	INT32 size = len;
+	unsigned char *ptr = (unsigned char *)buf;
+	while (size != 0) {
+		INT16 ret = recv(sockfd, ptr, size, 0);
+		if (ret <= 0)
+			return ret;
+		ptr += ret;
+		size -= ret;
+	}
+	return len;
+}
+
+INT16 cc3000_write(const INT32 sockfd, const void *buf, INT32 len)
+{
+	INT32 size = len;
+	const unsigned char *ptr = (const unsigned char *)buf;
+	while (size != 0) {
+		INT16 ret = send(sockfd, ptr, size, 0);
+		if (ret == 0)
+			continue;
+		else if (ret < 0)
+			return ret;
+		ptr += ret;
+		size -= ret;
+	}
+	return len;
 }

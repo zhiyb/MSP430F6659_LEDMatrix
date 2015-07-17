@@ -62,6 +62,32 @@ void CC3000_UsynchCallback(long	lEventType, char *data,	unsigned char length)
 	}
 }
 
+bool doTimeSync(void)
+{
+	const char str[] = "TIME";
+	if (cc3000_write(cc3000.socket, str, sizeof(str)) != sizeof(str))
+		return false;
+	uint8_t data[8];
+	if (cc3000_read(cc3000.socket, data, 8) <= 0)
+		return false;
+	rtc::setTimeFromBin(data);
+	cc3000.state |= cc3000_info_t::TimeSynced;
+	return true;
+}
+
+void doActions(void)
+{
+	if (!(cc3000.state & cc3000_info_t::TimeSynced)) {
+		if (!doTimeSync())
+			goto failed;
+	}
+	return;
+failed:
+	closesocket(cc3000.socket);
+	cc3000.socket = -1;
+	cc3000.state = (cc3000.state & ~cc3000_info_t::SocketMask) | cc3000_info_t::SocketDisconnected;
+}
+
 void wifiMangTask(void *pvParameters)
 {
 #if 0
@@ -105,14 +131,8 @@ loop:
 				cc3000.socket = -1;
 				cc3000.state = (cc3000.state & ~cc3000_info_t::SocketMask) | cc3000_info_t::SocketDisconnected;
 			}
-		} else if ((cc3000.state & cc3000_info_t::SocketMask) == cc3000_info_t::SocketConnected) {
-			char str[] = "Hello, world!";
-			if (send(cc3000.socket, str, strlen(str) + 1, 0) != 0) {
-				closesocket(cc3000.socket);
-				cc3000.socket = -1;
-				cc3000.state = (cc3000.state & ~cc3000_info_t::SocketMask) | cc3000_info_t::SocketDisconnected;
-			}
-		}
+		} else if ((cc3000.state & cc3000_info_t::SocketMask) == cc3000_info_t::SocketConnected)
+			doActions();
 	}
 	uart::puts(")\r\n");
 	vTaskDelay(configTICK_RATE_HZ);

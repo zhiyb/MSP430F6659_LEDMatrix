@@ -18,7 +18,8 @@
 extern struct cc3000_info_t {
 	enum {Disconnected = 0, Connecting = 0x1000, Connected = 0x8000, ConnectionMask = 0xF000,
 		DHCPSuccess = 0x0800, DHCPFailed = 0x0100, DHCPMask = 0x0F00,
-		SocketDisconnected = 0, SocketConnecting = 0x0010, SocketConnected = 0x0080, SocketMask = 0x00F0};
+		SocketDisconnected = 0, SocketConnecting = 0x0010, SocketConnected = 0x0080, SocketMask = 0x00F0,
+		NoActions = 0, ActionMask = 0x000F, TimeSynced = 0x0008};
 	volatile uint16_t state;
 	volatile bool newEvent;
 	INT32 socket;
@@ -27,23 +28,9 @@ extern struct cc3000_info_t {
 
 namespace display
 {
-	static inline uint8_t bcd2bin(const uint8_t v);
-	static inline uint8_t bin2bcd(const uint8_t v);
 	static inline void drawBCD(const uint8_t v);
 	static inline void drawBCD(const uint16_t v, uint8_t cnt);
 	void timeFS();
-}
-
-static inline uint8_t display::bcd2bin(const uint8_t v)
-{
-	BCD2BIN = v;
-	return BCD2BIN;
-}
-
-static inline uint8_t display::bin2bcd(const uint8_t v)
-{
-	BIN2BCD = v;
-	return BIN2BCD;
 }
 
 static inline void display::drawBCD(const uint8_t v)

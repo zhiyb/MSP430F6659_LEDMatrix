@@ -42,9 +42,30 @@ void rtc::init()
 rtc::time_t rtc::time()
 {
 	time_t t;
+	// Waiting for RTC module ready for access
+	while (!(RTCCTL01 & RTCRDY));
 	t.d[0] = RTCTIM0;
 	t.d[1] = RTCTIM1;
 	t.d[2] = RTCDATE;
 	t.d[3] = RTCYEAR;
 	return t;
+}
+
+void rtc::setTimeFromBin(uint8_t *data)
+{
+	// Waiting for RTC module ready for access
+	while (!(RTCCTL01 & RTCRDY));
+	// Suspend RTC module
+	//RTCCTL01 |= RTCHOLD;
+
+	RTCYEAR = bin2bcd((data[0] << 8) | data[1]);
+	RTCMON = bin2bcd(data[2]);
+	RTCDAY = bin2bcd(data[3]);
+	RTCDOW = bin2bcd(data[4]);
+	RTCHOUR = bin2bcd(data[5]);
+	RTCMIN = bin2bcd(data[6]);
+	RTCSEC = bin2bcd(data[7]);
+
+	// Resume RTC
+	//RTCCTL01 &= ~RTCHOLD;
 }

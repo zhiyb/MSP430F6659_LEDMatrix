@@ -28,8 +28,23 @@ namespace rtc
 
 	void init();
 	time_t time();
+	void setTimeFromBin(uint8_t *data);
 	static inline uint8_t ps() {return RT1PS;}
 	static inline bool ps1Hz() {return ps() & BIT6;}
+	static inline uint16_t bcd2bin(const uint16_t v);
+	static inline uint16_t bin2bcd(const uint16_t v);
+}
+
+static inline uint16_t rtc::bcd2bin(const uint16_t v)
+{
+	BCD2BIN = v;
+	return BCD2BIN;
+}
+
+static inline uint16_t rtc::bin2bcd(const uint16_t v)
+{
+	BIN2BCD = v;
+	return BIN2BCD;
 }
 
 #endif /* RTC_H_ */

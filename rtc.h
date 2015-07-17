@@ -25,9 +25,11 @@ namespace rtc
 		} i;
 		uint16_t d[4];
 	};
+	extern time_t tm;
 
 	void init();
-	time_t time();
+	static inline time_t& time() {return tm;}
+	time_t& getTime();	// Do actual time fetch from module
 	void setTimeFromBin(uint8_t *data);
 	static inline uint8_t ps() {return RT1PS;}
 	static inline bool ps1Hz() {return ps() & BIT6;}

@@ -8,6 +8,8 @@
 #include <msp430.h>
 #include "rtc.h"
 
+rtc::time_t rtc::tm;
+
 void rtc::init()
 {
 	// Initialise 32.768 kHz XTAL1
@@ -39,16 +41,15 @@ void rtc::init()
 		BAKCTL &= ~LOCKBAK;
 }
 
-rtc::time_t rtc::time()
+rtc::time_t& rtc::getTime()
 {
-	time_t t;
 	// Waiting for RTC module ready for access
 	while (!(RTCCTL01 & RTCRDY));
-	t.d[0] = RTCTIM0;
-	t.d[1] = RTCTIM1;
-	t.d[2] = RTCDATE;
-	t.d[3] = RTCYEAR;
-	return t;
+	tm.d[0] = RTCTIM0;
+	tm.d[1] = RTCTIM1;
+	tm.d[2] = RTCDATE;
+	tm.d[3] = RTCYEAR;
+	return tm;
 }
 
 void rtc::setTimeFromBin(uint8_t *data)

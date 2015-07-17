@@ -7,6 +7,7 @@
 
 #include "display.h"
 #include "ledmatrix.h"
+#include "cc3000tasks.h"
 #include "rtc.h"
 
 namespace ledMatrix
@@ -31,7 +32,7 @@ using namespace ledMatrix;
 
 void display::timeFS()
 {
-	const rtc::time_t t = rtc::time();
+	const rtc::time_t& t = rtc::getTime();
 	const bool colon = !rtc::ps1Hz();
 	setFont(6, 8);
 	setXY(2, 0);
@@ -61,10 +62,6 @@ void display::timeFS()
 	drawNextChar(colon ? ':' : ' ');
 	setFont(11, 16);
 	drawBCD(t.i.min);
-
-	// Do time sync every hour
-	if (t.i.sec == 0 && t.i.min == 0)
-		cc3000.state &= ~cc3000_info_t::TimeSynced;
 
 	setXY(LEDMATRIX_W - 8, 0);
 	switch (cc3000.state & ~cc3000_info_t::SocketMask & ~0x000F) {

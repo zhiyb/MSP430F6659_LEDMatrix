@@ -5,6 +5,7 @@
  *      Author: zhiyb
  */
 
+#include <stdio.h>
 #include <string.h>
 #include "rtc.h"
 #include "uart.h"
@@ -21,43 +22,78 @@
 
 #include <task.h>
 
+#define RFC868_SERVER	"time-nw.nist.gov"
+#define RFC868_PORT	37
+#define TIME_ZONE	(+8)
+
 #define	NETAPP_IPCONFIG_MAC_OFFSET	(20)
 #define	HCI_EVENT_MASK	(HCI_EVNT_WLAN_KEEPALIVE | HCI_EVNT_WLAN_UNSOL_INIT /*|	HCI_EVNT_WLAN_ASYNC_PING_REPORT*/)
 
 struct cc3000_info_t cc3000;
 QueueHandle_t xCC3000INTQueue = NULL;
 
-bool doTimeSync(void)
+void doTimeSync(void)
 {
-	const rtc::time_t& t = rtc::time();
+	const rtc::time_t& tm = rtc::time();
 	// Do time sync every hour
-	//if (t.i.sec == 0 && t.i.min == 0)
+	//if (tm.i.sec == 0 && tm.i.min == 0)
 	// Do time sync every 10 seconds (debug mode)
-	if ((t.i.sec & 0x0F) == 0)
+	if ((tm.i.sec & 0x0F) == 0)
 		cc3000.state &= ~cc3000_info_t::TimeSynced;
 
 	if (cc3000.state & cc3000_info_t::TimeSynced)
-		return true;
-	const char str[] = "TIME";
-	if (cc3000_write(cc3000.socket, str, sizeof(str)) != sizeof(str))
-		return false;
-	uint8_t data[8];
-	if (cc3000_read(cc3000.socket, data, sizeof(data)) != sizeof(data))
-		return false;
-	rtc::setTimeFromBin(data);
+		return;
+	puts("doTimeSync(");
+
+	UINT32 ipAddr = 0;
+	if (gethostbyname(RFC868_SERVER, strlen(RFC868_SERVER), &ipAddr) < 0 || ipAddr == 0)
+		return;
+	printf("DNS resolve: %08lX\n", ipAddr);
+
+	INT32 sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (sockfd < 0)
+		return;
+	UINT32 tout = 3000;	// 3 seconds recv timeout
+	if (setsockopt(sockfd, SOL_SOCKET, SOCKOPT_RECV_TIMEOUT, &tout, sizeof(tout)) != 0)
+		goto error;
+	printf("Socket created: %08lX\n", sockfd);
+
+	sockaddr_in addr;
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(RFC868_PORT);
+	addr.sin_addr.s_addr = htonl(ipAddr);
+	memset(addr.sin_zero, 0, 8);
+	if (connect(sockfd, (sockaddr *)&addr, sizeof(sockaddr)) != 0)
+		goto error;
+	puts("Socket connected");
+
+	UINT32 timeData;
+	if (cc3000_read(sockfd, &timeData, sizeof(timeData)) != sizeof(timeData))
+		goto error;
+	timeData = htonl(timeData);
+	printf("Data received: %08lX\n", timeData);
+
+	// TI version uses a different epoch: midnight UTC-6 Jan 1, 1900
+	//timeData -= 2208988800;	// Convert to from 1970-01-01
+	timeData += TIME_ZONE * 60UL * 60UL;
+	printf("Time converted: %08lX\n", timeData);
+	rtc::setTimeFromSecond(timeData);
+
 	cc3000.state |= cc3000_info_t::TimeSynced;
-	return true;
+error:
+	closesocket(sockfd);
 }
 
 void doActions(void)
 {
-	if (!doTimeSync())
-		goto failed;
+	doTimeSync();
+#if 0
 	return;
 failed:
 	closesocket(cc3000.socket);
 	cc3000.socket = -1;
 	cc3000.state = (cc3000.state & ~cc3000_info_t::SocketMask) | cc3000_info_t::SocketDisconnected;
+#endif
 }
 
 void wifiMangTask(void *pvParameters)
@@ -111,6 +147,8 @@ loop:
 			cc3000.state = cc3000_info_t::Disconnected;
 		}
 	} else if ((cc3000.state & cc3000_info_t::DHCPMask) == cc3000_info_t::DHCPSuccess) {
+		doActions();
+#if 0
 		while (cc3000.socket == -1) {
 			cc3000.state = (cc3000.state & ~cc3000_info_t::SocketMask) | cc3000_info_t::SocketConnecting;
 			cc3000.socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -130,6 +168,7 @@ loop:
 			}
 		} else if ((cc3000.state & cc3000_info_t::SocketMask) == cc3000_info_t::SocketConnected)
 			doActions();
+#endif
 	}
 	uart::puts(")\r\n");
 	goto loop;

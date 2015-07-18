@@ -22,12 +22,12 @@ void dispUpdTask(void *pvParameters)
 	static uint16_t cnt = 0;
 	setDoubleBufferEnabled(true);
 loop:
-	uart::puts("dispUpd(");
+	//uart::puts("dispUpd(");
 	clean();
 	display::timeFS();
 	(*buffer)[BufferGreen][0][0] = cnt++;
 	swapBuffer();
-	uart::puts(")\r\n");
+	//uart::puts(")\r\n");
 	vTaskDelay(configTICK_RATE_HZ / 8);
 	goto loop;
 }

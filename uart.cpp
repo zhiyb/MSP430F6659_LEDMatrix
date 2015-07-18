@@ -58,6 +58,8 @@ extern "C" {
 
 	int putc(int _c, register FILE *_fp)
 	{
+		if (_c == '\n')
+			uart::putc('\r');
 		uart::putc(_c);
 		return _c;
 	}
@@ -70,7 +72,6 @@ extern "C" {
 
 	int fputc(int _c, register FILE *_fp)
 	{
-		uart::putc(_c);
-		return _c;
+		return putc(_c, _fp);
 	}
 }

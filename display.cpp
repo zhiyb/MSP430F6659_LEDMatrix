@@ -37,7 +37,7 @@ void display::timeFS()
 	setFont(6, 8);
 	setXY(2, 0);
 	setColour(LEDMATRIX_COLOUR(Red, Blank));
-	drawBCD(t.i.year & 0x00FF);
+	drawBCD(t.i.year);
 	drawNextChar('-');
 	drawBCD(t.i.mon);
 	drawNextChar('-');

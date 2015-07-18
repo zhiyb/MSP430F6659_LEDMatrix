@@ -30,7 +30,9 @@ namespace rtc
 	void init();
 	static inline time_t& time() {return tm;}
 	time_t& getTime();	// Do actual time fetch from module
+	void setTime(const time_t *t);
 	void setTimeFromBin(uint8_t *data);
+	void setTimeFromSecond(uint32_t timeData);
 	static inline uint8_t ps() {return RT1PS;}
 	static inline bool ps1Hz() {return ps() & BIT6;}
 	static inline uint16_t bcd2bin(const uint16_t v);

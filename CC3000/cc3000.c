@@ -20,7 +20,7 @@ void WlanInterruptDisable()
 	PXIE(CC3000_INT_PORT) &= ~CC3000_INT;
 }
 
-void WriteWlanPin(unsigned char	val)
+void WriteWlanPin(unsigned char val)
 {
 	if (val)
 		PXOUT(CC3000_PORT) |= CC3000_EN;

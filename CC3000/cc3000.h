@@ -7,6 +7,10 @@
 extern "C" {
 #endif
 
+void WriteWlanPin(unsigned char val);
+long ReadWlanInterruptPin(void);
+void WlanInterruptEnable();
+void WlanInterruptDisable();
 void cc3000_init(tWlanCB sWlanCB);
 INT16 cc3000_read(const INT32 sockfd, void *buf, INT32 len);
 INT16 cc3000_write(const INT32 sockfd, const void *buf, INT32 len);

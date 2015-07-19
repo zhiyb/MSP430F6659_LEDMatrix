@@ -108,8 +108,11 @@ failed:
 
 void wifiMangTask(void *pvParameters)
 {
-	if (pvParameters)
+	if (pvParameters) {
+		WlanInterruptEnable();
+		SpiResumeSpi();
 		goto loop;
+	}
 #if 0
 	static char ssid[] = "ZZFNB00000017_Network";
 	static char key[] = "f3ei-zeb6-m35o";

@@ -25,10 +25,10 @@ extern struct cc3000_info_t {
 	INT32 socket;
 	uint8_t ip[4];
 } cc3000;
-extern QueueHandle_t xCC3000INTQueue;
 
 void CC3000_UsynchCallback(long	lEventType, char *data,	unsigned char length);
 void wifiMangTask(void *pvParameters);
 void cc3000INTTask(void *pvParameters);
+void createWiFiTasks();
 
 #endif /* CC3000TASKS_H_ */

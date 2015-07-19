@@ -30,7 +30,8 @@
 #define	HCI_EVENT_MASK	(HCI_EVNT_WLAN_KEEPALIVE | HCI_EVNT_WLAN_UNSOL_INIT /*|	HCI_EVNT_WLAN_ASYNC_PING_REPORT*/)
 
 struct cc3000_info_t cc3000;
-QueueHandle_t xCC3000INTQueue = NULL;
+static QueueHandle_t xCC3000INTQueue = NULL;
+static TaskHandle_t wifiMangHandle, wifiSPVHandle;
 
 void doTimeSync(void)
 {
@@ -54,8 +55,12 @@ void doTimeSync(void)
 	if (sockfd < 0)
 		return;
 	UINT32 tout = 3000;	// 3 seconds recv timeout
-	if (setsockopt(sockfd, SOL_SOCKET, SOCKOPT_RECV_TIMEOUT, &tout, sizeof(tout)) != 0)
-		goto error;
+	//UINT32 rvnb = SOCK_ON;	// Non-blocking mode
+	if (setsockopt(sockfd, SOL_SOCKET, SOCKOPT_RECV_TIMEOUT, &tout, sizeof(tout)) != 0 /*||
+		setsockopt(sockfd, SOL_SOCKET, SOCKOPT_RECV_NONBLOCK, &rvnb, sizeof(rvnb)) != 0*/) {
+		closesocket(sockfd);
+		return;
+	}
 	printf("Socket created: %08lX\n", sockfd);
 
 	sockaddr_in addr;
@@ -63,25 +68,30 @@ void doTimeSync(void)
 	addr.sin_port = htons(RFC868_PORT);
 	addr.sin_addr.s_addr = htonl(ipAddr);
 	memset(addr.sin_zero, 0, 8);
-	if (connect(sockfd, (sockaddr *)&addr, sizeof(sockaddr)) != 0)
-		goto error;
+	if (connect(sockfd, (sockaddr *)&addr, sizeof(sockaddr)) != 0) {
+		closesocket(sockfd);
+		return;
+	}
 	puts("Socket connected");
 
+	vTaskDelay(configTICK_RATE_HZ * 200UL / 1000UL);	// 200ms
 	UINT32 timeData;
-	if (cc3000_read(sockfd, &timeData, sizeof(timeData)) != sizeof(timeData))
-		goto error;
+	INT16 ret = cc3000_read(sockfd, &timeData, sizeof(timeData));
+	closesocket(sockfd);
+	if (ret != sizeof(timeData)) {
+		printf("Read error: %04X\n", ret);
+		return;
+	}
 	timeData = htonl(timeData);
 	printf("Data received: %08lX\n", timeData);
 
 	// TI version uses a different epoch: midnight UTC-6 Jan 1, 1900
-	//timeData -= 2208988800;	// Convert to from 1970-01-01
+	//timeData -= 2208988800UL;	// Convert to from 1970-01-01
 	timeData += TIME_ZONE * 60UL * 60UL;
 	printf("Time converted: %08lX\n", timeData);
 	rtc::setTimeFromSecond(timeData);
-
-	cc3000.state |= cc3000_info_t::TimeSynced;
-error:
-	closesocket(sockfd);
+	//cc3000.state |= cc3000_info_t::TimeSynced;
+	uart::puts(")\r\n");
 }
 
 void doActions(void)
@@ -98,6 +108,8 @@ failed:
 
 void wifiMangTask(void *pvParameters)
 {
+	if (pvParameters)
+		goto loop;
 #if 0
 	static char ssid[] = "ZZFNB00000017_Network";
 	static char key[] = "f3ei-zeb6-m35o";
@@ -171,44 +183,8 @@ loop:
 #endif
 	}
 	uart::puts(")\r\n");
+	xTaskNotify(wifiSPVHandle, (uint32_t)wifiMangHandle, eSetValueWithoutOverwrite);
 	goto loop;
-}
-
-void cc3000INTTask(void *pvParameters)
-{
-	// CC3000 interrupt polling
-polling:
-	uint16_t recvMsg;
-	while (xQueueReceive(xCC3000INTQueue, &recvMsg, portMAX_DELAY) != pdTRUE);
-	uart::puts("cc3000ISR(");
-	cc3000ISR();
-	uart::puts(")\r\n");
-	goto polling;
-}
-
-__attribute__((interrupt(PORT4_VECTOR)))
-__interrupt void IntSpiGPIOHandler(void)
-{
-	static const uint16_t cc3000Msg = P4IV_P4IFG7;
-	switch (__even_in_range(P4IV, P4IV_P4IFG7)) {
-	case P4IV_P4IFG7:
-		if (xCC3000INTQueue == NULL)
-			cc3000ISR();
-		else {
-			BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-			xQueueSendFromISR(xCC3000INTQueue, &cc3000Msg, &xHigherPriorityTaskWoken);
-
-			/* If writing to xQueue caused a task to unblock, and the unblocked task
-			has a priority equal to or above the task that this interrupt interrupted,
-			then xHigherPriorityTaskWoken will have been set to pdTRUE internally within
-			xQueuesendFromISR(), and portEND_SWITCHING_ISR() will ensure that this
-			interrupt returns directly to the higher priority unblocked task. */
-			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-		}
-		break;
-	default:
-		break;
-	}
 }
 
 // The function handles asynchronous events that come from CC3000
@@ -240,5 +216,71 @@ void CC3000_UsynchCallback(long	lEventType, char *data,	unsigned char length)
 		} else
 			cc3000.state = (cc3000.state & ~cc3000_info_t::DHCPMask) | cc3000_info_t::DHCPFailed;
 		break;
+#if 0	// TODO ?
+	case HCI_EVNT_BSD_TCP_CLOSE_WAIT:
+		break;
+#endif
+	default:
+		printf("{0x%08lX/%u}", lEventType, length);
+		break;
 	}
+}
+
+void wifiSPVTask(void *pvParameters)
+{
+	TickType_t xLastWakeTime = xTaskGetTickCount();
+
+loop:
+	uint32_t notify = ulTaskNotifyTake(pdTRUE, configTICK_RATE_HZ * 10);
+	if (notify == 0) {
+		uart::puts("\r\n*** Restarting WiFiMang Task ***\r\n");
+		vTaskDelete(wifiMangHandle);
+		xTaskCreate(wifiMangTask, "WiFiMang", configMINIMAL_STACK_SIZE * 4, (void *)pdTRUE, NORMAL_TASK_PRIORITY, &wifiMangHandle);
+	}
+	goto loop;
+}
+
+void cc3000INTTask(void *pvParameters)
+{
+	// CC3000 interrupt polling
+polling:
+	uint16_t recvMsg;
+	while (xQueueReceive(xCC3000INTQueue, &recvMsg, portMAX_DELAY) != pdTRUE);
+	uart::puts("ISR(");
+	cc3000ISR();
+	uart::putc(')');
+	goto polling;
+}
+
+__attribute__((interrupt(PORT4_VECTOR)))
+__interrupt void IntSpiGPIOHandler(void)
+{
+	static const uint16_t cc3000Msg = P4IV_P4IFG7;
+	switch (__even_in_range(P4IV, P4IV_P4IFG7)) {
+	case P4IV_P4IFG7:
+		if (xCC3000INTQueue == NULL)
+			cc3000ISR();
+		else {
+			BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+			xQueueSendFromISR(xCC3000INTQueue, &cc3000Msg, &xHigherPriorityTaskWoken);
+
+			/* If writing to xQueue caused a task to unblock, and the unblocked task
+			has a priority equal to or above the task that this interrupt interrupted,
+			then xHigherPriorityTaskWoken will have been set to pdTRUE internally within
+			xQueuesendFromISR(), and portEND_SWITCHING_ISR() will ensure that this
+			interrupt returns directly to the higher priority unblocked task. */
+			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void createWiFiTasks()
+{
+	xCC3000INTQueue = xQueueCreate(3, 2);
+	xTaskCreate(wifiMangTask, "WiFiMang", configMINIMAL_STACK_SIZE * 4, NULL, NORMAL_TASK_PRIORITY, &wifiMangHandle);
+	xTaskCreate(wifiSPVTask, "WiFiSPV", configMINIMAL_STACK_SIZE, NULL, SPV_TASK_PRIORITY, &wifiSPVHandle);
+	xTaskCreate(cc3000INTTask, "CC3000INT", configMINIMAL_STACK_SIZE * 4, NULL, INT_TASK_PRIORITY, NULL);
 }

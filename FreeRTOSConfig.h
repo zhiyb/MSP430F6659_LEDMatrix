@@ -93,6 +93,11 @@
 
 #include "clocks.h"
 
+#define NORMAL_TASK_PRIORITY	(tskIDLE_PRIORITY + 1)
+#define INT_TASK_PRIORITY	(tskIDLE_PRIORITY + 2)
+#define SPV_TASK_PRIORITY	(tskIDLE_PRIORITY + 3)
+#define DISP_TASK_PRIORITY	(tskIDLE_PRIORITY + 4)
+
 #define configUSE_PREEMPTION			1
 #define configUSE_IDLE_HOOK				1
 #define configUSE_TICK_HOOK				1
@@ -134,7 +139,7 @@
 to exclude the API function. */
 #define INCLUDE_vTaskPrioritySet		1
 #define INCLUDE_uxTaskPriorityGet		1
-#define INCLUDE_vTaskDelete				0
+#define INCLUDE_vTaskDelete				1
 #define INCLUDE_vTaskCleanUpResources	0
 #define INCLUDE_vTaskSuspend			1
 #define INCLUDE_vTaskDelayUntil			1

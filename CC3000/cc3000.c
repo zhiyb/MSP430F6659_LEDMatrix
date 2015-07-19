@@ -70,7 +70,9 @@ INT16 cc3000_read(const INT32 sockfd, void *buf, INT32 len)
 	unsigned char *ptr = (unsigned char *)buf;
 	while (size != 0) {
 		INT16 ret = recv(sockfd, ptr, size, 0);
-		if (ret <= 0)
+		if (ret == EAGAIN /*|| ret == 0*/)	// ret == EAGAIN not supported
+			continue;
+		else if (ret <= 0)
 			return ret;
 		ptr += ret;
 		size -= ret;

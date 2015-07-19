@@ -360,8 +360,7 @@ long SpiReadDataCont(void)
 	case HCI_TYPE_DATA:
 		{
 			// We need to read the rest of data..
-			STREAM_TO_UINT16((char *)(evnt_buff + SPI_HEADER_SIZE),
-											 HCI_DATA_LENGTH_OFFSET, data_to_recv);
+			STREAM_TO_UINT16((char *)(evnt_buff + SPI_HEADER_SIZE), HCI_DATA_LENGTH_OFFSET, data_to_recv);
 			if (!((HEADERS_SIZE_EVNT + data_to_recv) & 1))
 				data_to_recv++;
 

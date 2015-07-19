@@ -863,6 +863,7 @@ INT16 getsockopt (INT32 sd, INT32 level, INT32 optname, void *optval, socklen_t 
 //!                  socket the message is received from
 //
 //*****************************************************************************
+
 INT16 simple_link_recv(INT32 sd, void *buf, INT32 len, INT32 flags, sockaddr *from,
 	socklen_t *fromlen, INT32 opcode)
 {

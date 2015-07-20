@@ -7,8 +7,10 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <msp430.h>
 #include "rtc.h"
 #include "uart.h"
+#include "macros.h"
 
 #include "cc3000tasks.h"
 #include <cc3000.h>
@@ -108,11 +110,14 @@ failed:
 
 void wifiMangTask(void *pvParameters)
 {
-	if (pvParameters) {
-		WlanInterruptEnable();
-		SpiResumeSpi();
-		goto loop;
-	}
+	cc3000.state = cc3000_info_t::Disconnected;
+	cc3000.newEvent = false;
+	cc3000.socket = -1;
+
+	cc3000_init(CC3000_UsynchCallback);
+	__delay_cycles(MCLK / 1000 * 50);	// 50ms
+	wlan_stop();
+	__delay_cycles(MCLK / 1000 * 50);	// 50ms
 #if 0
 	static char ssid[] = "ZZFNB00000017_Network";
 	static char key[] = "f3ei-zeb6-m35o";
@@ -145,6 +150,7 @@ void wifiMangTask(void *pvParameters)
 	//wlan_disconnect();
 
 loop:
+	xTaskNotify(wifiSPVHandle, (uint32_t)wifiMangHandle, eSetValueWithoutOverwrite);
 	vTaskDelay(configTICK_RATE_HZ);
 	uart::puts("wifiMang(");
 	if (cc3000.state == cc3000_info_t::Disconnected) {
@@ -186,7 +192,6 @@ loop:
 #endif
 	}
 	uart::puts(")\r\n");
-	xTaskNotify(wifiSPVHandle, (uint32_t)wifiMangHandle, eSetValueWithoutOverwrite);
 	goto loop;
 }
 

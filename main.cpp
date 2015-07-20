@@ -32,15 +32,6 @@ loop:
 	goto loop;
 }
 
-void initCC3000()
-{
-	cc3000.state = cc3000_info_t::Disconnected;
-	cc3000.newEvent = false;
-	cc3000.socket = -1;
-
-	cc3000_init(CC3000_UsynchCallback);
-}
-
 void init(void)
 {
 	WDTCTL = WDTPW | WDTHOLD;	// Stop watchdog timer
@@ -81,7 +72,6 @@ void init(void)
 	ledMatrix::init();
 	__enable_interrupt();
 
-	initCC3000();
 	createWiFiTasks();
 	xTaskCreate(dispUpdTask, "DispUpd", configMINIMAL_STACK_SIZE, NULL, DISP_TASK_PRIORITY, NULL);
 }

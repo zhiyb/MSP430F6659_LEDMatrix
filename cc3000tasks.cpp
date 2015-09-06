@@ -38,10 +38,13 @@ static TaskHandle_t wifiMangHandle, wifiSPVHandle;
 void doTimeSync(void)
 {
 	const rtc::time_t& tm = rtc::time();
+#if 1
 	// Do time sync every hour
-	//if (tm.i.sec == 0 && tm.i.min == 0)
+	if (tm.i.sec == 0 && tm.i.min == 0)
+#else
 	// Do time sync every 10 seconds (debug mode)
 	if ((tm.i.sec & 0x0F) == 0)
+#endif
 		cc3000.state &= ~cc3000_info_t::TimeSynced;
 
 	if (cc3000.state & cc3000_info_t::TimeSynced)
@@ -92,7 +95,7 @@ void doTimeSync(void)
 	timeData += TIME_ZONE * 60UL * 60UL;
 	printf("Time converted: %08lX\n", timeData);
 	rtc::setTimeFromSecond(timeData);
-	//cc3000.state |= cc3000_info_t::TimeSynced;
+	cc3000.state |= cc3000_info_t::TimeSynced;
 	uart::puts(")\r\n");
 }
 

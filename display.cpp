@@ -32,6 +32,7 @@ using namespace ledMatrix;
 
 void display::timeFS()
 {
+	static const char *weekdays[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 	const rtc::time_t& t = rtc::getTime();
 	const bool colon = !rtc::ps1Hz();
 	setFont(6, 8);
@@ -45,6 +46,8 @@ void display::timeFS()
 
 	setXY(2, 8);
 	setColour(LEDMATRIX_COLOUR(Green, Blank));
+	drawString(weekdays[t.i.dow]);
+#if 0
 	drawBCD(t.i.hour);
 	drawNextChar(colon ? ':' : ' ');
 	drawBCD(t.i.min);
@@ -53,6 +56,7 @@ void display::timeFS()
 	drawNextChar(' ');
 	setColour(LEDMATRIX_COLOUR(Red | Green, Blank));
 	drawBCD(t.i.dow, 1);
+#endif
 
 	setXY(5, 16);
 	setColour(LEDMATRIX_COLOUR(Red | Green, Blank));
